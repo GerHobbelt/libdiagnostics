@@ -7,7 +7,12 @@ A C/C++ diagnostics logging library with support for writing HTML and store imag
 
 - when you want to log not just some simple log lines, but expect to output a related set of images and/or other binary data for future inspection.
 
-  Example: my *augmented* `tesseract` OCR engine where I want & need to see the internals at work more closely, *after the fact* (as we'll be batch-processing image pages): I want to see the images and the extracts used by `tesseract` as it moves along. A log file doesn't cut it, by half! -- The classic "solution" was to run a `Scrollview` hacky somewhat-interactive JAVA app in parallel with the tesseract run you wished to inspect more closely. Definitely not suited for batch processing or other *post-fact*/*post-mortem* diagnostics scenarios! `libdiagnostics` instead writes and intellible HTML file which links to every image produced internally during the run. And you have a HTML file per session, so you can inspect those at your leasure some time afterwards when you have got time to do some digging!
+  > Example: my *augmented* `tesseract` OCR engine where I want & need to see the internals at work more closely, *after the fact* (as we'll be batch-processing image pages): I want to see the images and the extracts used by `tesseract` as it moves along. A log file doesn't cut it, by half!
+  >
+  > The classic "solution" was to run a `Scrollview` hacky somewhat-interactive JAVA app in parallel with the tesseract run you wished to inspect more closely. Definitely not suited for batch processing or other *post-fact*/*post-mortem* diagnostics scenarios!
+  > 
+  > `libdiagnostics` instead writes an intellible HTML file which links to every image produced internally during the run.
+  > And you have a HTML file per session, so you can inspect those at your leasure some time afterwards when you have got time to do some digging!
 
 - when you like to use a log library that's both fast and flexible and able to produce both HTML and regular pure-text log files (when you find HTML is putting a crimp on your `grep` or `vim` Foo ;-) )
 
