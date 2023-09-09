@@ -3,7 +3,7 @@
 A C/C++ diagnostics logging library with support for writing HTML and store images and misc binary data to disk alongside. or when a mere logfile doesn't suffice.
 
 
-## Why & hen use `libdiagnostics`?
+## Why & when use `libdiagnostics`?
 
 - when you want to log not just some simple log lines, but expect to output a related set of images and/or other binary data for future inspection.
 
