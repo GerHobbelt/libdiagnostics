@@ -31,3 +31,18 @@ A C/C++ diagnostics logging library with support for writing HTML and store imag
 - config (change the configuration on the fly; the initial configuration is done in the init call)
 
 
+## Performance
+
+`libdiagnostics` rides on top of known-good high performance logging libraries, such as `spdlog`.
+
+
+## Configurable... when?
+
+None of this log4j craziness! The selectable output channels (HTML file + images, etc.), plain text file, syslog, ...) are largely set up at compile time by specifying the desired preprocessor `#define`s. This is the *superset* of output modes for `libdiagnostics`. At run-time (through a configuration file or other means provided by the application using this library) these preselected output channels can be turned ON or OFF and FILTERED, i.e. their output *further restricted* to a specified subset of the raw output fed to the `libdiagnostics` library by the application using our library. 
+
+These (optional) *filters* are kept *simple* for performance reasons: when an end user desires further filtering/processing of the diagnostics output, they are invited to do so in their diagnostics viewing environment instead: we DO NOT ish to slow down the application with fancy filtering means applied to every log/diagnostics statement we are passed!
+
+
+
+
+
