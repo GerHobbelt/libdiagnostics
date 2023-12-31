@@ -5,7 +5,7 @@
 
 ## Accepted *inputs*
 
-- structured data (suitable for JSONL, hence simple structures, not cyclic state machines and such)
+- structured data (suitable for [JSONL](https://jsonlines.org/), hence simple structures, not cyclic state machines and such)
 - images / binary data BLOBs
 
 Inputs (calls to log via the library) should provide these attributes/data elements:
@@ -25,24 +25,24 @@ Inputs (calls to log via the library) should provide these attributes/data eleme
 
 - human readable text files -- a.k.a. classic "logfiles". Rotated, (compressed?), accessible with minimal tooling (text editor), ...
 - human readable HTML files -- similar, but now we can go through them using regular web browsers and we can include links (`<img src="...">`), etc. to the accompanying image files for improved human understanding of what's going on. The bit that started all this, really, as I need/want a log "format" which deals with a mix of images and data/text, while monitoring/diagnosing `tesseract` et al.
-- JSONL -- for Grafana, et al: watching batch runs via greylog, netdata, loki, grafana, ...: charts vs. text overload to appease the human brain when bombarded with bulk diag info.
-- GELF -- ditto, but this is the greylog native format. Same bunch of targets. From what I read about it, some noises suggest this is JSONL with some steroids jacked up the ass. Not a major priority right now as I don't expect to use greylog, rather more netdata + loki, both feeding grafana.
-- syslog / syslog-ng -- notice the new RFCs (RFC5474 IIRC) which have a little blurb added about structured data includes. Anyway, syslog is a nice generic format that's supported across the UNIX realm, so a good start for a feed into loki/netdata/others, if I am any judge.
+- [JSONL](https://jsonlines.org/) -- for [grafana](https://github.com/grafana/grafana), et al: watching batch runs via [graylog](https://github.com/Graylog2/graylog2-server), [netdata](https://github.com/netdata/netdata), [loki](https://github.com/grafana/loki), [grafana](https://github.com/grafana/grafana), ...: charts vs. text overload to appease the human brain when bombarded with bulk diag info.
+- GELF -- ditto, but this is the [graylog](https://github.com/Graylog2/graylog2-server) native format. Same bunch of targets. From what I read about it, some noises suggest this is JSONL with some steroids jacked up the ass. Not a major priority right now as I don't expect to use [graylog](https://github.com/Graylog2/graylog2-server), rather more [netdata](https://github.com/netdata/netdata) + [loki](https://github.com/grafana/loki), both feeding [grafana](https://github.com/grafana/grafana).
+- syslog / syslog-ng -- notice the new RFC ([RFC5424](https://www.rfc-editor.org/info/rfc5424)) which has a little blurb added about structured data includes. Anyway, syslog ([RFC3164](https://www.rfc-editor.org/info/rfc3164)) is a nice generic format that's supported across the UNIX realm, so a good start for a feed into [loki](https://github.com/grafana/loki)/[netdata](https://github.com/netdata/netdata)/others, if I am any judge.
    
   There is a mention of the 1024 byte message limit though, which I'm not happy about.
-* MS Windows Debug Channel -- great stuff when you got it and use Visual Studio, like I do.
-* MS Windows Event Log -- hola! Remember this one requires compiled resources and registry work to make the event log entries look good?! Been there, done that, but then and now, I've got the feeling nobody in their right mind is using EventLog, so:
+* [MS Windows Debug Output Channel](https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/sending-output-to-the-debugger) -- great stuff when you got it and use Visual Studio, like I do.
+* MS Windows Event Log -- hola! Remember this one requires compiled resources and registry work to make the event log entries look good?! Been there, done that, but then and now, I've got the feeling nobody in their right mind is [using EventLog](https://stackoverflow.com/questions/8559222/write-an-event-to-the-event-viewer), so:
   
   This should be dealt with via an external "*intermediary*" application, which can take care of that registry + resource crap for us. Yeah, code duplication and all that jazz, so that's gonna be one very generic template resource entry set right there. Anyhow, I don't want to deal with this crap in the main application(s) that are using `libdiagnostics`. ÜBER-LOW PRIORITY because, like I said: nobody in their right mind...
-* SQL / SQLite? -- cute, but that would mean we'ld be *sharing* a database across an application boundary. *Should* be fine but, given past experience, I'ld rather not got there and taunt the Lovecraftian Murphy Gods.
+* SQL / [SQLite](https://github.com/sqlite/sqlite)? -- cute, but that would mean we'ld be *sharing* a database across an application boundary. *Should* be fine but, given past experience, I'ld rather not got there and taunt the Lovecraftian Murphy Gods.
 
 
 Looking at the above, the adjustable/pluggable log engine part splits into two categories:
-- formatting (JSONL, text, syslog message format, etc.)
-- transmit medium (file, socket (TCP/UDP) to syslog deamon, netdata, loki, influxdb, ...)
+- formatting ([JSONL](https://jsonlines.org/), text, [syslog message format](https://www.rfc-editor.org/info/rfc5424), etc.)
+- transmit medium (file, socket (TCP/UDP) to [syslog daemon](https://github.com/syslog-ng/syslog-ng), [netdata](https://github.com/netdata/netdata), [loki](https://github.com/grafana/loki), [influxdb](https://github.com/influxdata/influxdb), ...)
 
 
-Should we have an application/logtype identifier/prefix per medium? Expected: easier filtering at the receiving end as different medium *probably* means different needs --> different end-point / user filters for the same grand-total log stream that's pumped through `libdiagnostics`.
+Should we have an application/log-type identifier/prefix per medium? Expected: easier filtering at the receiving end as different medium *probably* means different needs --> different end-point / user filters for the same grand-total log stream that's pumped through `libdiagnostics`.
 
 
 ## How to cope with logged images and binary BLOBs?
@@ -51,7 +51,7 @@ per output channel (specific mix of formatting + transmit medium):
 
 - configurable wrapper/formatting, e.g.:
 	- HTML file: `href`to local file (or rather: `<img src="local/path...">`)
-	- JSONL or HTML or ... via socket transmit: include custom marker or URL format template so remote gatherer and human viewer can access the stored image files + binary files, which have to be reached through other means, e.g. additional static file serving webserver?
+	- [JSONL](https://jsonlines.org/) or HTML or ... via socket transmit: include custom marker or URL format template so remote gatherer and human viewer can access the stored image files + binary files, which have to be reached through other means, e.g. additional static file serving webserver?
 
 
 ## Speed?
@@ -160,4 +160,40 @@ finally {
 ...
 pop(mark)   // pop section mark once we like to do so; section stack is OK
 ```
+
+
+## Extra Features
+
+### Unique identifier for every log message
+
+- create a quick code scan+rewrite tool which seeks out all these error messages and check+replace the identifiers so as to ensure that existing identifiers are kept as-is when unique and non-unique ones are "uniquified". `MSG0000` (or any chosen equivalent identifier text template/format) will be assigned a new, unique number when the `0000` number is zero(0): that way one can quickly write new log messages, assign then code 0 and then run the code inspect+rewrite tool to assign a sane identifier value/code.
+
+Inspired by https://climbtheladder.com/10-c-logging-best-practices-2/  item #7:
+
+> #### 7. Make sure that each message has a unique identifier
+>
+> When debugging an issue, it’s often necessary to search through log files for specific messages. If each message has a unique identifier, it makes it much easier to find the exact message you’re looking for. This is especially important when dealing with large log files that contain thousands of lines of text.
+> 
+> Unique identifiers also make it easier to track down issues in production environments. By having a unique identifier associated with each message, it’s possible to quickly identify which messages are related to a particular problem and trace them back to their source.
+
+
+
+### Benchmarks / performance
+
+Other logging libraries have published various benchmarks, which indicate some of the faster fellas out there -- though one has to reckon with benchmarks often being different from "reality" ;-) 
+
+Meanwhile, https://github.com/chronoxor/CppLogging and https://github.com/SergiusTheBest/plog look promising as a starter / base block...
+
+- https://github.com/chronoxor/CppBenchmark
+
+
+logging libraries:
+
+- https://github.com/google/glog
+- https://github.com/SergiusTheBest/plog
+- https://github.com/mjbots/log4cpp / https://sourceforge.net/p/log4cpp/codegit/ci/master/tree/
+- https://github.com/log4cplus/log4cplus
+- https://github.com/chronoxor/CppLogging
+- https://codereview.stackexchange.com/questions/221922/c-logging-library : tip to use `boost::stacktrace::stacktrace();` when [stacktrace](https://www.boost.org/doc/libs/1_70_0/doc/html/stacktrace.html) is available on the platform and you want debug stack traces to go with some of your log lines. 
+- 
 
