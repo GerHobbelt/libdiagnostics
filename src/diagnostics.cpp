@@ -200,7 +200,7 @@ namespace diagnostics {
 	}
 
 
-	static STRING_VAR(debug_file, "", "File to send the application diagnostic messages to. Accepts '-' or '1' for stdout, '+' or '2' for stderr, and also recognizes these on *all* platforms: /dev/null, /dev/stdout, /dev/stderr");
+	STRING_VAR(debug_file, "", "File to send the application diagnostic messages to. Accepts '-' or '1' for stdout, '+' or '2' for stderr, and also recognizes these on *all* platforms: /dev/null, /dev/stdout, /dev/stderr");
 
 	// Trace printf
 	void vTessPrint(int level, fmt::string_view format, fmt::format_args args) {
