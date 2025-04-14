@@ -34,7 +34,7 @@ Inputs (calls to log via the library) should provide these attributes/data eleme
 * MS Windows Event Log -- hola! Remember this one requires compiled resources and registry work to make the event log entries look good?! Been there, done that, but then and now, I've got the feeling nobody in their right mind is [using EventLog](https://stackoverflow.com/questions/8559222/write-an-event-to-the-event-viewer), so:
   
   This should be dealt with via an external "*intermediary*" application, which can take care of that registry + resource crap for us. Yeah, code duplication and all that jazz, so that's gonna be one very generic template resource entry set right there. Anyhow, I don't want to deal with this crap in the main application(s) that are using `libdiagnostics`. ÜBER-LOW PRIORITY because, like I said: nobody in their right mind...
-* SQL / [SQLite](https://github.com/sqlite/sqlite)? -- cute, but that would mean we'ld be *sharing* a database across an application boundary. *Should* be fine but, given past experience, I'ld rather not got there and taunt the Lovecraftian Murphy Gods.
+* SQL / [SQLite](https://github.com/sqlite/sqlite)? -- cute, but that would mean we'ld be *sharing* a database across an application boundary. *Should* be fine but, given past experience, I'ld rather not get there and taunt the Lovecraftian Murphy Gods.
 
 
 Looking at the above, the adjustable/pluggable log engine part splits into two categories:
@@ -160,6 +160,47 @@ finally {
 ...
 pop(mark)   // pop section mark once we like to do so; section stack is OK
 ```
+
+The above idea can be reduced to `pop-up-to-this-marker` i.e. `pop-all-our-children[but-not-us-ourselves]`:
+
+```
+mark = push(id)   // actual section mark; push-counted
+try {
+  ...
+  throw!
+}
+catch {
+  ...
+}
+finally {
+  pop_children(mark)  // unwinds section stack all the way, UP TO this level
+}
+...
+pop(mark)   // pop section mark once we like to do so; section stack is OK
+```
+
+and then, of course, there's the obvious C++ maneuver: have the *destructor* do the `pop`-ping... or the safe equivalent using a [`std::unique_ptr`](https://en.cppreference.com/w/cpp/memory/unique_ptr):
+
+```
+// push:
+std::unique_ptr<DiagnosticExecStackMarker> mark = std::make_unique<DiagnosticExecStackMarker>(id);   // actual section mark
+try {
+  ...
+  throw!
+}
+catch {
+  ...
+}
+finally {
+  pop_children(mark)  // unwinds section stack all the way to this level
+}
+...
+// pop section mark once we like to do so; section stack is OK
+mark = null;
+// OR:
+// `mark` goes out of scope, i.e. std::unique_ptr auto-invokes the destructor.
+```
+
 
 
 ## Extra Features
