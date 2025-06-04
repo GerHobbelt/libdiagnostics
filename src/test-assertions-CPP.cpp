@@ -3,6 +3,9 @@
 
 #include <diagnostics/assertions.h>
 
+#include <iostream>
+#include <fstream>
+
 static int foo(void) {
 	return 123;
 }
@@ -38,9 +41,24 @@ int main(void) {
 	LIBDIAG_NULL_ASSERT_IMPL(foo() == 123);
 
 	DIAG_ASSERT_EQ(foo(), 123);
-	DIAG_ASSERT_EQ(fbar(), 123);
+	DIAG_ASSERT_EQ(fbar(), 123.0f);
 
-	DIAG_ASSERT_NE(fbar(), 5);
+	DIAG_ASSERT_NE(fbar(), 5.0f);
+
+	std::string x{"foo"};
+	std::string y{"foo"};
+
+	libdiag::StringComparator comparator{};
+
+	DIAG_ASSERT_STR_EQ(x, y);
+	DIAG_ASSERT_STR_EQ(x, "foo");
+
+	DIAG_ASSERT_COMPARATOR(comparator, "bar", x);
+
+	libdiag::IEEE754Comparator flt_comparator{1e-5};
+	std::cerr << "Comparing floats with epsilon: " << flt_comparator.nameof() << std::endl;
+	DIAG_ASSERT_COMPARATOR(flt_comparator, fbar(), 123);
+
 }
 
 

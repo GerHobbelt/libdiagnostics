@@ -3,6 +3,9 @@
 
 #if defined __cplusplus
 #include <cassert>
+#include <format>
+#include <algorithm>
+#include <type_traits>
 #else
 #include <assert.h>
 #endif
@@ -237,31 +240,39 @@ extern "C" {
 
 /* This prints an "Assertion failed" message and aborts / throws.  */
 template <typename TA, typename TB>
-void LIBDIAG_NORETURN libdiag_assert_fail_op(const TA& a, const TB& b, const char *assertion_lside, const char *assertion_operand, const char *assertion_rside, const char *file, unsigned int line, const char *function, const char *extra_message);
+void LIBDIAG_NORETURN libdiag_assert_fail_op(const TA& a, const TB& b, const char *assertion_lside, const char *assertion_operand, const char *assertion_rside, const char *operand_name, const char *file, unsigned int line, const char *function, const char *extra_message);
 
 #endif
 
 // CONDITION_STR is needed to prevent macros in condition from being expected, which obfuscates
 // the logged failure, e.g., "EAGAIN" vs "11".
-#define LIBDIAG_ASSERT_OP_IMPL(A, OP, B, A_STR, OP_STR, B_STR, ACTION, DETAILS)                                    \
+#define LIBDIAG_ASSERT_OP_IMPL(A, OP, B, A_STR, OP_STR, B_STR, OPERATOR_NAME, ACTION, DETAILS)                                    \
   do {                                                                                             \
-	  auto a = (A), b = (B);    \
+	  using A_TYPE = decltype(A); \
+	  using B_TYPE = decltype(B); \
+      static_assert(std::is_object<A_TYPE>::value, "A must be an object instance"); \
+	  static_assert(std::is_object<B_TYPE>::value, "B must be an object instance"); \
+	  static_assert(std::is_layout_compatible<A_TYPE, B_TYPE>::value, "A and B must be layout compatible"); \
+	  static_assert(std::is_same<decltype(A OP B), bool>::value, "A OP B must return a bool"); \
+	  auto a{(A)};    \
+	  auto b{(B)};    \
       if (static_cast<bool>(a OP b))								\
         ; /* empty */							\
       else								\
 	  {                                                                            \
-          libdiag_assert_fail_op(a, b, A_STR, OP_STR, B_STR, LIBDIAG_ASSERT_FILE, LIBDIAG_ASSERT_LINE, LIBDIAG_ASSERT_FUNCTION, (DETAILS));	\
+          libdiag_assert_fail_op<decltype(A), decltype(B)>(a, b, A_STR, OP_STR, B_STR, #OPERATOR_NAME, LIBDIAG_ASSERT_FILE, LIBDIAG_ASSERT_LINE, LIBDIAG_ASSERT_FUNCTION, (DETAILS));	\
 		  ACTION;                                                                                      \
       }                                                                                              \
   } while (false)
 
-#define LIBDIAG_ASSERT_OP_ORIGINAL(A, OP, B)   LIBDIAG_ASSERT_OP_IMPL(A, OP, B, #A, #OP, #B, LIBDIAG_ASSERT_ACTION, "")
-#define LIBDIAG_ASSERT_OP_VERBOSE(A, OP, B, Y) LIBDIAG_ASSERT_OP_IMPL(A, OP, B, #A, #OP, #B, LIBDIAG_ASSERT_ACTION, Y)
+#define LIBDIAG_ASSERT_OP_ORIGINAL(A, OP, B, OPERATOR_NAME)   LIBDIAG_ASSERT_OP_IMPL(A, OP, B, #A, #OP, #B, OPERATOR_NAME, LIBDIAG_ASSERT_ACTION, "")
+#define LIBDIAG_ASSERT_OP_VERBOSE(A, OP, B, OPERATOR_NAME, Y) LIBDIAG_ASSERT_OP_IMPL(A, OP, B, #A, #OP, #B, OPERATOR_NAME, LIBDIAG_ASSERT_ACTION, Y)
 #define LIBDIAG_ASSERT_SELECTOR(_1, _2, ASSERT_MACRO, ...) ASSERT_MACRO
 
 
-#define DIAG_ASSERT_OP(A, OP, B, ...)                                                                                \
-  LIBDIAG_EXPAND(LIBDIAG_ASSERT_SELECTOR(__VA_ARGS__, LIBDIAG_ASSERT_OP_VERBOSE, LIBDIAG_ASSERT_OP_ORIGINAL)(A, OP, B __VA_OPT__(,) __VA_ARGS__))
+#define DIAG_ASSERT_OP(A, OP, B, OPERATOR_NAME, ...)                                                                                \
+  LIBDIAG_EXPAND(LIBDIAG_ASSERT_SELECTOR(__VA_ARGS__, LIBDIAG_ASSERT_OP_VERBOSE, LIBDIAG_ASSERT_OP_ORIGINAL)(A, OP, B, OPERATOR_NAME __VA_OPT__(,) __VA_ARGS__))
+
 
 
 
@@ -269,10 +280,28 @@ void LIBDIAG_NORETURN libdiag_assert_fail_op(const TA& a, const TB& b, const cha
 
 
 #define DIAG_ASSERT_EQ(A, B, ...)                                                                                \
-	DIAG_ASSERT_OP(A, ==, B, __VA_ARGS__)
+	DIAG_ASSERT_OP(A, ==, B, eq, __VA_ARGS__)
 
 #define DIAG_ASSERT_NE(A, B, ...)                                                                                \
-	DIAG_ASSERT_OP(A, !=, B, __VA_ARGS__)
+	DIAG_ASSERT_OP(A, !=, B, ne, __VA_ARGS__)
+
+#define DIAG_ASSERT_GT(A, B, ...)                                                                                \
+	DIAG_ASSERT_OP(A, >, B, gt, __VA_ARGS__)
+
+#define DIAG_ASSERT_GE(A, B, ...)                                                                                \
+	DIAG_ASSERT_OP(A, >=, B, ge, __VA_ARGS__)
+
+#define DIAG_ASSERT_LE(A, B, ...)                                                                                \
+	DIAG_ASSERT_OP(A, <=, B, le, __VA_ARGS__)
+
+#define DIAG_ASSERT_LT(A, B, ...)                                                                                \
+	DIAG_ASSERT_OP(A, <, B, lt, __VA_ARGS__)
+
+#define DIAG_ASSERT_NE(A, B, ...)                                                                                \
+	DIAG_ASSERT_OP(A, !=, B, ne, __VA_ARGS__)
+
+#define DIAG_ASSERT_NE(A, B, ...)                                                                                \
+	DIAG_ASSERT_OP(A, !=, B, ne, __VA_ARGS__)
 
 
 
@@ -284,12 +313,136 @@ void LIBDIAG_NORETURN libdiag_assert_fail_op(const TA& a, const TB& b, const cha
 
 
 
+#if defined __cplusplus
+
+namespace libdiag {
+	template <typename T1, typename T2>
+	class ComparatorBase {
+	public:
+		~ComparatorBase() = default;
+
+		bool matches(const T1& a, const T2& b) const;
+		const char *nameof() const;
+	};
+}
+
+/* This prints an "Assertion failed" message and aborts / throws.  */
+template <typename TA, typename TB>
+void LIBDIAG_NORETURN libdiag_assert_fail_comparator(const TA& a, const TB& b, const char *assertion_lside, const char *assertion_rside, const char *comparator_name, const char *file, unsigned int line, const char *function, const char *extra_message);
+
+#endif
+
+// CONDITION_STR is needed to prevent macros in condition from being expected, which obfuscates
+// the logged failure, e.g., "EAGAIN" vs "11".
+#define LIBDIAG_ASSERT_COMPARATOR_IMPL(COMPARATOR_OBJ_REF, A, B, A_STR, B_STR, ACTION, DETAILS)                                    \
+  do {                                                                                             \
+	  const auto& a{(A)}; \
+      const auto& b{(B)};    \
+	  using COMPARATOR_TYPE = decltype(COMPARATOR_OBJ_REF); \
+	  static_assert(std::is_object<COMPARATOR_TYPE>::value, "COMPARATOR_OBJ_REF must be an object instance"); \
+	  static_assert(std::is_class<COMPARATOR_TYPE>::value, "COMPARATOR_OBJ_REF must be of a comparator class type"); \
+	  /* static_assert(std::is_layout_compatible<libdiag::ComparatorBase<decltype(A), decltype(B)>, COMPARATOR_TYPE>::value, "COMPARATOR_OBJ_REF must be a valid comparator object instance"); */ \
+	  /* static_assert(std::is_base_of<libdiag::ComparatorBase<decltype(A), decltype(B)>, COMPARATOR_TYPE>::value, "COMPARATOR_OBJ_REF must be an instance of a libdiag::ComparatorBase<> or have libdiag::ComparatorBase<> as one of its base classes"); */ \
+	  static_assert(std::is_same<decltype(COMPARATOR_OBJ_REF.matches(a, b)), bool>::value, "COMPARATOR_OBJ_REF.matches must return a bool"); \
+	  static_assert(std::is_same<decltype(COMPARATOR_OBJ_REF.nameof()), const char *>::value, "COMPARATOR_OBJ_REF.nameof must return a const char*"); \
+	  auto& COMPOBJ = (COMPARATOR_OBJ_REF);				\
+      if (COMPOBJ.matches(a, b))								\
+        ; /* empty */							\
+      else								\
+	  {                                                                            \
+          libdiag_assert_fail_comparator<decltype(A), decltype(B)>(a, b, A_STR, B_STR, COMPOBJ.nameof(), LIBDIAG_ASSERT_FILE, LIBDIAG_ASSERT_LINE, LIBDIAG_ASSERT_FUNCTION, (DETAILS));	\
+		  ACTION;                                                                                      \
+      }                                                                                              \
+  } while (false)
+
+
+#define LIBDIAG_ASSERT_COMPARATOR_ORIGINAL(COMPARATOR_OBJ_REF, A, B)   LIBDIAG_ASSERT_COMPARATOR_IMPL(COMPARATOR_OBJ_REF, A, B, #A, #B, LIBDIAG_ASSERT_ACTION, "")
+#define LIBDIAG_ASSERT_COMPARATOR_VERBOSE(COMPARATOR_OBJ_REF, A, B, Y) LIBDIAG_ASSERT_COMPARATOR_IMPL(COMPARATOR_OBJ_REF, A, B, #A, #B, LIBDIAG_ASSERT_ACTION, Y)
+//#define LIBDIAG_ASSERT_SELECTOR(_1, _2, ASSERT_MACRO, ...) ASSERT_MACRO
+
+
+#define DIAG_ASSERT_COMPARATOR(COMPARATOR_OBJ_REF, A, B, ...)                                                                                \
+  LIBDIAG_EXPAND(LIBDIAG_ASSERT_SELECTOR(__VA_ARGS__, LIBDIAG_ASSERT_COMPARATOR_VERBOSE, LIBDIAG_ASSERT_COMPARATOR_ORIGINAL)(COMPARATOR_OBJ_REF, A, B __VA_OPT__(,) __VA_ARGS__))
 
 
 
 
 
 
+
+namespace libdiag {
+
+	class StringComparator: public ComparatorBase<std::string, std::string> {
+	public:
+		bool matches(const std::string& a, const std::string& b) const {
+			return (strcmp(a.c_str(), b.c_str()) == 0);
+		}
+		const char *nameof() const {
+			return "StringComparator";
+		}
+	};
+
+	class IEEE754Comparator: public ComparatorBase<std::string, std::string> {
+	protected:
+		double mAbsoluteEpsilon;
+		double mRelativeEpsilon;
+		std::string mName;
+
+	public:
+		IEEE754Comparator(double relative_epsilon = 1e-7, double absolute_epsilon = 1e-35)
+			: mAbsoluteEpsilon(absolute_epsilon)
+			, mRelativeEpsilon(relative_epsilon)
+			, mName(std::format("IEEE754Comparator<Rel.Eps:{:g}; Abs.Eps:{:g}>", relative_epsilon, absolute_epsilon))
+		{}
+		bool matches(const double a, const double b) const {
+			if (a == b)
+				return true;
+			const double diff = std::abs(a - b);
+			if (diff < mAbsoluteEpsilon)
+				return true;
+			const double ah = std::abs(a);
+			const double bh = std::abs(b);
+			// make sure we don't collide with the MSVC `max()` **macro**!
+			const double largest_value = (std::max)(ah, bh);
+			const double part = largest_value + mRelativeEpsilon;
+			return (diff <= part);
+		}
+		const char *nameof() const {
+			return mName.c_str();
+		}
+	};
+}
+
+
+#define DIAG_ASSERT_STR_EQ(A, B, ...)                                                                                \
+  do {                                                                                             \
+	  libdiag::StringComparator cmp{};													\
+	  DIAG_ASSERT_COMPARATOR(cmp, A, B, __VA_ARGS__);                            \
+  } while (false)
+
+
+
+
+
+
+
+
+
+
+
+// Here's an example why we would (also) need expression-type assertions, next to statement-type assertions::
+//
+// From the ICU library here's a class constructor snippet:
+//
+//     constexpr FormattedStringBuilder::Field::Field(uint8_t category, uint8_t field)
+//         : bits((
+//             U_ASSERT(category <= 0xf),
+//             U_ASSERT(field <= 0xf),
+//             static_cast<uint8_t>((category << 4) | field)
+//         )) {}
+//
+// Note that U_ASSERT() references the `assert()` macro, which *apparently* is assumed to be an assertion expressiontype!
+//
 
 
 
