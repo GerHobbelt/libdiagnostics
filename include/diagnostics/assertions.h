@@ -6,8 +6,12 @@
 #include <format>
 #include <algorithm>
 #include <type_traits>
+#include <cstddef>
+#include <numbers>
+#include <string>
 #else
 #include <assert.h>
+#include <stdint.h>
 #endif
 
 #if defined(_WIN32)
@@ -137,6 +141,30 @@ extern "C" {
 }
 #endif
 
+#if defined __cplusplus
+
+namespace libdiag {
+
+	/* This prints an "Assertion failed" message and aborts / throws.  */
+	void LIBDIAG_NORETURN assert_fail(const char *assertion, const char *file, unsigned int line, const char *function, const char *extra_message);
+	void LIBDIAG_NORETURN assert_fail(const char *assertion, const char *file, unsigned int line, const char *function, const std::string &extra_message);
+
+	/* Likewise, but prints the error text for ERRNUM.  */
+	void LIBDIAG_NORETURN perror_fail(int errnum, const char *assertion, const char *file, unsigned int line, const char *function, const char *extra_message);
+	void LIBDIAG_NORETURN perror_fail(int errnum, const char *assertion, const char *file, unsigned int line, const char *function, const std::string &extra_message);
+
+#if defined(_WIN32)
+
+	/* Likewise, but prints the error text for ERRNUM.  */
+	void LIBDIAG_NORETURN Win32error_fail(HRESULT errnum, const char *assertion, const char *file, unsigned int line, const char *function, const char *extra_message);
+	void LIBDIAG_NORETURN Win32error_fail(HRESULT errnum, const char *assertion, const char *file, unsigned int line, const char *function, const std::string &extra_message);
+
+#endif
+
+} // namespace libdiag
+
+#endif // __cplusplus
+
 
 
 #if DIAG_ASSERTIONS_MODE == 0
@@ -154,6 +182,8 @@ extern "C" {
 
 // assertion macro mapping for 1 and 2 arguments: stolen from Intel Envoy (https://github.com/envoyproxy/envoy)
 
+#if defined __cplusplus
+
 // CONDITION_STR is needed to prevent macros in condition from being expected, which obfuscates
 // the logged failure, e.g., "EAGAIN" vs "11".
 #define LIBDIAG_ASSERT_IMPL(CONDITION, CONDITION_STR, ACTION, DETAILS)                                    \
@@ -162,12 +192,31 @@ extern "C" {
         ; /* empty */							\
       else								\
 	  {                                                                            \
-          libdiag_assert_fail(CONDITION_STR, LIBDIAG_ASSERT_FILE, LIBDIAG_ASSERT_LINE, LIBDIAG_ASSERT_FUNCTION, (DETAILS));	\
+          libdiag::assert_fail(CONDITION_STR, LIBDIAG_ASSERT_FILE, LIBDIAG_ASSERT_LINE, LIBDIAG_ASSERT_FUNCTION, (DETAILS));	\
 		  ACTION;                                                                                      \
       }                                                                                              \
   } while (false)
 
+#else // __cplusplus
+
+// CONDITION_STR is needed to prevent macros in condition from being expected, which obfuscates
+// the logged failure, e.g., "EAGAIN" vs "11".
+#define LIBDIAG_ASSERT_IMPL(CONDITION, CONDITION_STR, ACTION, DETAILS)                                    \
+  do {                                                                                             \
+      if (!!(CONDITION))								\
+        ; /* empty */							\
+      else								\
+	  {                                                                            \
+          libdiag_assert_fail(CONDITION_STR, LIBDIAG_ASSERT_FILE, LIBDIAG_ASSERT_LINE, LIBDIAG_ASSERT_FUNCTION, (DETAILS));	\
+		  ACTION;                                                                                      \
+      }                                                                                              \
+  } while (0)
+
+#endif // __cplusplus
+
 #if 0
+
+#if defined __cplusplus
 
 #if !defined(NDEBUG) // If this is a debug build.
 #define LIBDIAG_ASSERT_ACTION ::abort()
@@ -176,6 +225,18 @@ extern "C" {
   Envoy::Assert::invokeDebugAssertionFailureRecordActionForAssertMacroUseOnly(                     \
       __FILE__ ":" TOSTRING(__LINE__))
 #endif // !defined(NDEBUG)
+
+#else // __cplusplus
+
+#if !defined(NDEBUG) // If this is a debug build.
+#define LIBDIAG_ASSERT_ACTION ::abort()
+#else // If this is not a debug build, but ENVOY_LOG_(FAST)_DEBUG_ASSERT_IN_RELEASE is defined.
+#define LIBDIAG_ASSERT_ACTION                                                                              \
+  Envoy::Assert::invokeDebugAssertionFailureRecordActionForAssertMacroUseOnly(                     \
+      __FILE__ ":" TOSTRING(__LINE__))
+#endif // !defined(NDEBUG)
+
+#endif // __cplusplus
 
 #else
 
@@ -213,15 +274,27 @@ extern "C" {
 
 // FOR_EACH(DIAG_ASSERT, a, b, c, 1, 2, 3)   // => F(a) F(b) F(c) F(1) F(2) F(3)
 
+#if defined __cplusplus
+
 #define DIAG_ASSERT_FOR_EACH(...)                                                                  \
     do {                                                                                           \
 		FOR_EACH(; DIAG_ASSERT, __VA_ARGS__);														   \
     } while (false)
 
+#else // __cplusplus
+
+#define DIAG_ASSERT_FOR_EACH(...)                                                                  \
+    do {                                                                                           \
+		FOR_EACH(; DIAG_ASSERT, __VA_ARGS__);														   \
+    } while (0)
+
+#endif // __cplusplus
 
 
 
 
+
+#if defined __cplusplus
 
 // This non-implementation ensures that its argument is a valid expression that can be statically
 // casted to a bool, but the expression is never evaluated and will be compiled away.
@@ -230,6 +303,18 @@ extern "C" {
     constexpr bool __assert_dummy_variable = false && static_cast<bool>(X);                        \
     (void)__assert_dummy_variable;                                                                 \
   } while (false)
+
+#else // __cplusplus
+
+// This non-implementation ensures that its argument is a valid expression that can be statically
+// casted to a bool, but the expression is never evaluated and will be compiled away.
+#define LIBDIAG_NULL_ASSERT_IMPL(X, ...)                                                           \
+  do {                                                                                             \
+    const int __assert_dummy_variable = 0 && !!(X);                        \
+    (void)__assert_dummy_variable;                                                                 \
+  } while (0)
+
+#endif // __cplusplus
 
 
 
@@ -242,7 +327,6 @@ extern "C" {
 template <typename TA, typename TB>
 void LIBDIAG_NORETURN libdiag_assert_fail_op(const TA& a, const TB& b, const char *assertion_lside, const char *assertion_operand, const char *assertion_rside, const char *operand_name, const char *file, unsigned int line, const char *function, const char *extra_message);
 
-#endif
 
 // CONDITION_STR is needed to prevent macros in condition from being expected, which obfuscates
 // the logged failure, e.g., "EAGAIN" vs "11".
@@ -264,6 +348,29 @@ void LIBDIAG_NORETURN libdiag_assert_fail_op(const TA& a, const TB& b, const cha
 		  ACTION;                                                                                      \
       }                                                                                              \
   } while (false)
+
+#else // __cplusplus
+
+/* This prints an "Assertion failed" message and aborts / throws.  */
+void LIBDIAG_NORETURN libdiag_assert_fail_op(const int64_t a, const int64_t b, const char *assertion_lside, const char *assertion_operand, const char *assertion_rside, const char *operand_name, const char *file, unsigned int line, const char *function, const char *extra_message);
+
+
+// CONDITION_STR is needed to prevent macros in condition from being expected, which obfuscates
+// the logged failure, e.g., "EAGAIN" vs "11".
+#define LIBDIAG_ASSERT_OP_IMPL(A, OP, B, A_STR, OP_STR, B_STR, OPERATOR_NAME, ACTION, DETAILS)                                    \
+  do {                                                                                             \
+	  int64_t a = (A);    \
+	  int64_t b = (B);    \
+      if (!!(a OP b))								\
+        ; /* empty */							\
+      else								\
+	  {                                                                            \
+          libdiag_assert_fail_op(a, b, A_STR, OP_STR, B_STR, #OPERATOR_NAME, LIBDIAG_ASSERT_FILE, LIBDIAG_ASSERT_LINE, LIBDIAG_ASSERT_FUNCTION, (DETAILS));	\
+		  ACTION;                                                                                      \
+      }                                                                                              \
+  } while (0)
+
+#endif // __cplusplus
 
 #define LIBDIAG_ASSERT_OP_ORIGINAL(A, OP, B, OPERATOR_NAME)   LIBDIAG_ASSERT_OP_IMPL(A, OP, B, #A, #OP, #B, OPERATOR_NAME, LIBDIAG_ASSERT_ACTION, "")
 #define LIBDIAG_ASSERT_OP_VERBOSE(A, OP, B, OPERATOR_NAME, Y) LIBDIAG_ASSERT_OP_IMPL(A, OP, B, #A, #OP, #B, OPERATOR_NAME, LIBDIAG_ASSERT_ACTION, Y)
@@ -324,13 +431,14 @@ namespace libdiag {
 		bool matches(const T1& a, const T2& b) const;
 		const char *nameof() const;
 	};
+
+	/* This prints an "Assertion failed" message and aborts / throws.  */
+	template <typename TA, typename TB>
+	void LIBDIAG_NORETURN assert_fail_comparator(const TA& a, const TB& b, const char *assertion_lside, const char *assertion_rside, const char *comparator_name, const char *file, unsigned int line, const char *function, const char *extra_message);
+	template <typename TA, typename TB>
+	void LIBDIAG_NORETURN assert_fail_comparator(const TA& a, const TB& b, const char *assertion_lside, const char *assertion_rside, const char *comparator_name, const char *file, unsigned int line, const char *function, const std::string &extra_message);
+
 }
-
-/* This prints an "Assertion failed" message and aborts / throws.  */
-template <typename TA, typename TB>
-void LIBDIAG_NORETURN libdiag_assert_fail_comparator(const TA& a, const TB& b, const char *assertion_lside, const char *assertion_rside, const char *comparator_name, const char *file, unsigned int line, const char *function, const char *extra_message);
-
-#endif
 
 // CONDITION_STR is needed to prevent macros in condition from being expected, which obfuscates
 // the logged failure, e.g., "EAGAIN" vs "11".
@@ -350,10 +458,33 @@ void LIBDIAG_NORETURN libdiag_assert_fail_comparator(const TA& a, const TB& b, c
         ; /* empty */							\
       else								\
 	  {                                                                            \
-          libdiag_assert_fail_comparator<decltype(A), decltype(B)>(a, b, A_STR, B_STR, COMPOBJ.nameof(), LIBDIAG_ASSERT_FILE, LIBDIAG_ASSERT_LINE, LIBDIAG_ASSERT_FUNCTION, (DETAILS));	\
+          libdiag::assert_fail_comparator<decltype(A), decltype(B)>(a, b, A_STR, B_STR, COMPOBJ.nameof(), LIBDIAG_ASSERT_FILE, LIBDIAG_ASSERT_LINE, LIBDIAG_ASSERT_FUNCTION, (DETAILS));	\
 		  ACTION;                                                                                      \
       }                                                                                              \
   } while (false)
+
+#else
+
+/* This prints an "Assertion failed" message and aborts / throws.  */
+void LIBDIAG_NORETURN libdiag_assert_fail_comparator(const int64_t a, const int64_t b, const char *assertion_lside, const char *assertion_rside, const char *comparator_name, const char *file, unsigned int line, const char *function, const char *extra_message);
+
+// CONDITION_STR is needed to prevent macros in condition from being expected, which obfuscates
+// the logged failure, e.g., "EAGAIN" vs "11".
+#define LIBDIAG_ASSERT_COMPARATOR_IMPL(COMPARATOR_FUNCTION, A, B, A_STR, B_STR, ACTION, DETAILS)                                    \
+  do {                                                                                             \
+	  const int64_t a = (A); \
+      const int64_t b = (B);    \
+      if (COMPARATOR_FUNCTION(a, b))								\
+        ; /* empty */							\
+      else								\
+	  {                                                                            \
+          libdiag_assert_fail_comparator(a, b, A_STR, B_STR, #COMPARATOR_FUNCTION, LIBDIAG_ASSERT_FILE, LIBDIAG_ASSERT_LINE, LIBDIAG_ASSERT_FUNCTION, (DETAILS));	\
+		  ACTION;                                                                                      \
+      }                                                                                              \
+  } while (0)
+
+#endif
+
 
 
 #define LIBDIAG_ASSERT_COMPARATOR_ORIGINAL(COMPARATOR_OBJ_REF, A, B)   LIBDIAG_ASSERT_COMPARATOR_IMPL(COMPARATOR_OBJ_REF, A, B, #A, #B, LIBDIAG_ASSERT_ACTION, "")
@@ -370,6 +501,8 @@ void LIBDIAG_NORETURN libdiag_assert_fail_comparator(const TA& a, const TB& b, c
 
 
 
+#if defined __cplusplus
+
 namespace libdiag {
 
 	class StringComparator: public ComparatorBase<std::string, std::string> {
@@ -382,6 +515,70 @@ namespace libdiag {
 		}
 	};
 
+}
+
+namespace libdiag {
+
+	// https://en.cppreference.com/w/cpp/language/user_literal.html
+
+#if !defined(__cpp_user_defined_literals)
+#error "libdiagnostics requires a compiler which supports C++ user-defined literal suffixes: https://en.cppreference.com/w/cpp/language/user_literal.html"
+#endif
+
+	class perunage_t {
+		long double mP;
+	public:
+		perunage_t() = delete;
+		perunage_t(long double pct)
+			: mP(std::abs(pct))
+		{
+		}
+		~perunage_t() = default;
+
+		static perunage_t minimum_4_float(void) {
+			return perunage_t{FLT_EPSILON}; // ≅ 1e-07
+		}
+		static perunage_t minimum_4_double(void) {
+			return perunage_t{DBL_EPSILON}; // ≅ 1e-16
+		}
+		static perunage_t default_4_float(void) {
+			return perunage_t{1e-4};
+		}
+		static perunage_t default_4_double(void) {
+			return perunage_t{1e-9};
+		}
+
+		constexpr double value(void) {
+			return mP;
+		}
+	};
+
+}
+
+
+
+// used as conversion from percentage (input param) to per-unage (returned output)
+libdiag::perunage_t operator""_pct(long double pct)
+{
+	long double pu = pct * 0.01;
+	return pu;
+}
+
+libdiag::perunage_t operator""_perunage(long double perunage)
+{
+	return perunage;
+}
+
+libdiag::perunage_t operator""_promille(long double ppm)
+{
+	long double pu = ppm * 0.001;
+	return pu;
+}
+
+
+
+namespace libdiag {
+
 	class IEEE754Comparator: public ComparatorBase<std::string, std::string> {
 	protected:
 		double mAbsoluteEpsilon;
@@ -389,11 +586,30 @@ namespace libdiag {
 		std::string mName;
 
 	public:
-		IEEE754Comparator(double relative_epsilon = 1e-7, double absolute_epsilon = 1e-35)
-			: mAbsoluteEpsilon(absolute_epsilon)
-			, mRelativeEpsilon(relative_epsilon)
+		struct parameters_t {
+			// -1.0	means "default value"; or rather: *any* negative value signals you want to apply the "default value".
+			// 
+			// Note: 0.0 is a valid epsilon/tolerance value, so we need to use -1.0 as a marker for "default value".
+			double absolute_epsilon{-1.0};	
+			double relative_epsilon{-1.0};
+		};
+
+		// LAMENT: I would've preferred to use named parameters here: https://pdimov.github.io/blog/2020/09/07/named-parameters-in-c20/
+		explicit IEEE754Comparator(double absolute_epsilon = -1.0, double relative_epsilon = -1.0)
+			: mAbsoluteEpsilon(absolute_epsilon < 0.0 ? 1e-35 : absolute_epsilon)
+			, mRelativeEpsilon(relative_epsilon < 0.0 ? 1e-7 : relative_epsilon)
 			, mName(std::format("IEEE754Comparator<Rel.Eps:{:g}; Abs.Eps:{:g}>", relative_epsilon, absolute_epsilon))
 		{}
+		// The way to pass in only a modified *relative epsilon* value, while keeping the default absolute epsilon value.
+		explicit IEEE754Comparator(perunage_t relative_epsilon, double absolute_epsilon = -1)
+			: IEEE754Comparator(relative_epsilon.value(), absolute_epsilon)
+		{
+		}
+		explicit IEEE754Comparator(parameters_t settings)
+			: IEEE754Comparator(settings.relative_epsilon, settings.absolute_epsilon)
+		{
+		}
+
 		bool matches(const double a, const double b) const {
 			if (a == b)
 				return true;
@@ -407,8 +623,13 @@ namespace libdiag {
 			const double part = largest_value + mRelativeEpsilon;
 			return (diff <= part);
 		}
+
 		const char *nameof() const {
 			return mName.c_str();
+		}
+
+		parameters_t parameters() const {
+			return {.absolute_epsilon = mAbsoluteEpsilon, .relative_epsilon = mRelativeEpsilon};
 		}
 	};
 }
@@ -421,6 +642,57 @@ namespace libdiag {
   } while (false)
 
 
+
+
+
+
+
+
+
+
+#define DIAG_ASSERT_FLT_EQ_APPROX(A, B, REL_EPSILON, ...)                                                                                \
+  do {                                                                                             \
+	  /* libdiag::IEEE754Comparator flt_cmp{{.relative_epsilon = REL_EPSILON }}; */													\
+	  libdiag::IEEE754Comparator flt_cmp{REL_EPSILON};													\
+	  DIAG_ASSERT_COMPARATOR(flt_cmp, A, B, __VA_ARGS__);                            \
+  } while (false)
+
+
+#else
+
+int libdiag_string_comparator(const char *a, const char *b);
+
+int libdiag_IEEE754_comparator_absolute_epsilon(const double a, const double b, const double epsilon);
+int libdiag_IEEE754_comparator_relative_epsilon(const double a, const double b, const double epsilon);
+
+
+#define DIAG_ASSERT_STR_EQ(A, B, ...)                                                                                \
+  do {                                                                                             \
+	  DIAG_ASSERT_COMPARATOR(libdiag_string_comparator, A, B, __VA_ARGS__);                            \
+  } while (0)
+
+
+
+
+
+
+
+
+
+// these macro names *differ* from their C++ counterparts as C does not support user-defined literals, so we cannot use the `_pct` or `_perunage` suffixes and related tricks to induce polymorphy.
+
+#define DIAG_ASSERT_FLT_EQ_APPROX_PERUNAGE(A, B, REL_EPSILON, ...)                                                                                \
+  do {                                                                                             \
+	  DIAG_ASSERT_COMPARATOR(libdiag_IEEE754_comparator_relative_epsilon, A, B, REL_EPSILON, __VA_ARGS__);                            \
+  } while (0)
+
+#define DIAG_ASSERT_FLT_EQ_APPROX_FIXED(A, B, ABSOLUTE_EPSILON, ...)                                                                                \
+  do {                                                                                             \
+	  DIAG_ASSERT_COMPARATOR(libdiag_IEEE754_comparator_absolute_epsilon, A, B, ABSOLUTE_EPSILON, __VA_ARGS__);                            \
+  } while (0)
+
+
+#endif
 
 
 
