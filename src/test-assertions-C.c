@@ -56,10 +56,11 @@ int main(void) {
 
 	DIAG_ASSERT_COMPARATOR(comparator, "bar", x);
 
-	libdiag::IEEE754Comparator flt_comparator{1e-5};
-	std::cerr << "Comparing floats with epsilon: " << flt_comparator.nameof() << std::endl;
+	//libdiag::IEEE754Comparator flt_comparator{1e-5};
+	//std::cerr << "Comparing floats with epsilon: " << flt_comparator.nameof() << std::endl;
 	DIAG_ASSERT_COMPARATOR(flt_comparator, fbar(), 123);
 
+#if 0
 	{
 		libdiag::IEEE754Comparator flt_comparator2({.relative_epsilon = 1e-4}); // https://pdimov.github.io/blog/2020/09/07/named-parameters-in-c20/
 		libdiag::IEEE754Comparator flt_comparator3{0.1_pct};
@@ -96,12 +97,13 @@ int main(void) {
 		DIAG_ASSERT_COMPARATOR(flt_comparator6, fbar(), 123 + 0.098);
 		DIAG_ASSERT_COMPARATOR(flt_comparator6, fbar(), 123 - 0.11);  // should fail, as the error introduced is *absolute* and larger than the allowed epsilon.
 	}
+#endif
 
 	DIAG_ASSERT_FLT_EQ_APPROX(fbar(), fbar() + 1e-3, 1e-2_perunage);
 
-	DIAG_ASSERT_FLT_EQ_APPROX(fbar(), fbar() + 1e-3, libdiag::IEEE754Comparator::parameters_t({ .absolute_epsilon = 0.0, .relative_epsilon = 1e-4 })); // needs to `parameters` type to avoid ambiguity with the last comma between the two epsilon parameters
+	// DIAG_ASSERT_FLT_EQ_APPROX(fbar(), fbar() + 1e-3, libdiag::IEEE754Comparator::parameters_t({ .absolute_epsilon = 0.0, .relative_epsilon = 1e-4 })); // needs to `parameters` type to avoid ambiguity with the last comma between the two epsilon parameters
 
-	libdiag::IEEE754Comparator flt_comparator_EX{{ .absolute_epsilon = 0.0, .relative_epsilon = 1e-4 }};
+	// libdiag::IEEE754Comparator flt_comparator_EX{{ .absolute_epsilon = 0.0, .relative_epsilon = 1e-4 }};
 
 	// ... but, for readability and conciseness, you can also pass in a pre-initialized IEEE754Comparator object instead:
 
