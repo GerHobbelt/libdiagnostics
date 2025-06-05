@@ -1,6 +1,10 @@
 
 #pragma once
 
+#if !defined __cplusplus
+#error "This header is only for C++ code, not for C code."
+#endif
+
 #include <cassert>
 #include <format>
 #include <algorithm>
@@ -19,11 +23,8 @@
 
 
 
-#if defined __cplusplus
 # define LIBDIAG_ASSERT_VOID_CAST static_cast<void>
-#else
-# define LIBDIAG_ASSERT_VOID_CAST (void)
-#endif
+
 
 #if !defined(LIBDIAG_NORETURN)
 #if defined(__clang__) && defined(__has_attribute) && !defined(_MSC_VER)
@@ -48,7 +49,7 @@
 // When possible, define assert so that it does not add extra
 // parentheses around EXPR.  Otherwise, those added parentheses would
 // suppress warnings we'd expect to be detected by gcc's -Wparentheses.
-#if defined __cplusplus
+#if !defined LIBDIAG_ASSERT_FILE
 #  if defined __has_builtin
 #   if __has_builtin(__builtin_FILE)
 #    define LIBDIAG_ASSERT_FILE __builtin_FILE()
@@ -66,7 +67,6 @@
 // This is broken in G++ before version 2.6.
 // C9x has a similar variable called __func__, but prefer the GCC one since
 // it demangles C++ function names.
-#if defined __cplusplus 
 
 #if defined(__GNUC__) && (__GNUC__ >= 3)
 #  define LIBDIAG_ASSERT_FUNCTION	__PRETTY_FUNCTION__
@@ -76,19 +76,6 @@
 #  define LIBDIAG_ASSERT_FUNCTION	__func__
 #endif
 
-#else // __cplusplus
-
-#if defined __STDC_VERSION__ && __STDC_VERSION__ >= 199901L
-#  define LIBDIAG_ASSERT_FUNCTION	__func__
-#elif defined(_MSC_VER)
-// Visual Studio 6 does not know __func__ or __FUNCTION__
-// The rest of MS compilers use __FUNCTION__, not C99 __func__
-#  define LIBDIAG_ASSERT_FUNCTION	__FUNCTION__
-#else
-#  define LIBDIAG_ASSERT_FUNCTION	"???"
-#endif
-
-#endif // __cplusplus
 
 
 // This macro is needed to help to remove: "warning C4003: not enough arguments for function-like
@@ -119,28 +106,6 @@
 #endif
 
 
-#if defined __cplusplus
-extern "C" {
-#endif
-
-	/* This prints an "Assertion failed" message and aborts / throws.  */
-	void LIBDIAG_NORETURN libdiag_assert_fail(const char *assertion, const char *file, unsigned int line, const char *function, const char *extra_message);
-
-	/* Likewise, but prints the error text for ERRNUM.  */
-	void LIBDIAG_NORETURN libdiag_perror_fail(int errnum, const char *assertion, const char *file, unsigned int line, const char *function, const char *extra_message);
-
-#if defined(_WIN32)
-
-	/* Likewise, but prints the error text for ERRNUM.  */
-	void LIBDIAG_NORETURN libdiag_Win32error_fail(HRESULT errnum, const char *assertion, const char *file, unsigned int line, const char *function, const char *extra_message);
-
-#endif
-
-#if defined __cplusplus
-}
-#endif
-
-#if defined __cplusplus
 
 namespace libdiag {
 
@@ -162,7 +127,6 @@ namespace libdiag {
 
 } // namespace libdiag
 
-#endif // __cplusplus
 
 
 
@@ -180,8 +144,6 @@ namespace libdiag {
 
 
 // assertion macro mapping for 1 and 2 arguments: stolen from Intel Envoy (https://github.com/envoyproxy/envoy)
-
-#if defined __cplusplus
 
 // CONDITION_STR is needed to prevent macros in condition from being expected, which obfuscates
 // the logged failure, e.g., "EAGAIN" vs "11".
@@ -211,12 +173,8 @@ namespace libdiag {
       }                                                                                              \
   } while (0)
 
-#endif // __cplusplus
-
 #if 0
 
-#if defined __cplusplus
-
 #if !defined(NDEBUG) // If this is a debug build.
 #define LIBDIAG_ASSERT_ACTION ::abort()
 #else // If this is not a debug build, but ENVOY_LOG_(FAST)_DEBUG_ASSERT_IN_RELEASE is defined.
@@ -224,18 +182,6 @@ namespace libdiag {
   Envoy::Assert::invokeDebugAssertionFailureRecordActionForAssertMacroUseOnly(                     \
       __FILE__ ":" TOSTRING(__LINE__))
 #endif // !defined(NDEBUG)
-
-#else // __cplusplus
-
-#if !defined(NDEBUG) // If this is a debug build.
-#define LIBDIAG_ASSERT_ACTION ::abort()
-#else // If this is not a debug build, but ENVOY_LOG_(FAST)_DEBUG_ASSERT_IN_RELEASE is defined.
-#define LIBDIAG_ASSERT_ACTION                                                                              \
-  Envoy::Assert::invokeDebugAssertionFailureRecordActionForAssertMacroUseOnly(                     \
-      __FILE__ ":" TOSTRING(__LINE__))
-#endif // !defined(NDEBUG)
-
-#endif // __cplusplus
 
 #else
 
@@ -273,27 +219,15 @@ namespace libdiag {
 
 // FOR_EACH(DIAG_ASSERT, a, b, c, 1, 2, 3)   // => F(a) F(b) F(c) F(1) F(2) F(3)
 
-#if defined __cplusplus
-
 #define DIAG_ASSERT_FOR_EACH(...)                                                                  \
     do {                                                                                           \
 		FOR_EACH(; DIAG_ASSERT, __VA_ARGS__);														   \
     } while (false)
 
-#else // __cplusplus
-
-#define DIAG_ASSERT_FOR_EACH(...)                                                                  \
-    do {                                                                                           \
-		FOR_EACH(; DIAG_ASSERT, __VA_ARGS__);														   \
-    } while (0)
-
-#endif // __cplusplus
 
 
 
 
-
-#if defined __cplusplus
 
 // This non-implementation ensures that its argument is a valid expression that can be statically
 // casted to a bool, but the expression is never evaluated and will be compiled away.
@@ -303,24 +237,11 @@ namespace libdiag {
     (void)__assert_dummy_variable;                                                                 \
   } while (false)
 
-#else // __cplusplus
-
-// This non-implementation ensures that its argument is a valid expression that can be statically
-// casted to a bool, but the expression is never evaluated and will be compiled away.
-#define LIBDIAG_NULL_ASSERT_IMPL(X, ...)                                                           \
-  do {                                                                                             \
-    const int __assert_dummy_variable = 0 && !!(X);                        \
-    (void)__assert_dummy_variable;                                                                 \
-  } while (0)
-
-#endif // __cplusplus
 
 
 
 
 
-
-#if defined __cplusplus
 
 /* This prints an "Assertion failed" message and aborts / throws.  */
 template <typename TA, typename TB>
@@ -348,28 +269,6 @@ void LIBDIAG_NORETURN libdiag_assert_fail_op(const TA& a, const TB& b, const cha
       }                                                                                              \
   } while (false)
 
-#else // __cplusplus
-
-/* This prints an "Assertion failed" message and aborts / throws.  */
-void LIBDIAG_NORETURN libdiag_assert_fail_op(const int64_t a, const int64_t b, const char *assertion_lside, const char *assertion_operand, const char *assertion_rside, const char *operand_name, const char *file, unsigned int line, const char *function, const char *extra_message);
-
-
-// CONDITION_STR is needed to prevent macros in condition from being expected, which obfuscates
-// the logged failure, e.g., "EAGAIN" vs "11".
-#define LIBDIAG_ASSERT_OP_IMPL(A, OP, B, A_STR, OP_STR, B_STR, OPERATOR_NAME, ACTION, DETAILS)                                    \
-  do {                                                                                             \
-	  int64_t a = (A);    \
-	  int64_t b = (B);    \
-      if (!!(a OP b))								\
-        ; /* empty */							\
-      else								\
-	  {                                                                            \
-          libdiag_assert_fail_op(a, b, A_STR, OP_STR, B_STR, #OPERATOR_NAME, LIBDIAG_ASSERT_FILE, LIBDIAG_ASSERT_LINE, LIBDIAG_ASSERT_FUNCTION, (DETAILS));	\
-		  ACTION;                                                                                      \
-      }                                                                                              \
-  } while (0)
-
-#endif // __cplusplus
 
 #define LIBDIAG_ASSERT_OP_ORIGINAL(A, OP, B, OPERATOR_NAME)   LIBDIAG_ASSERT_OP_IMPL(A, OP, B, #A, #OP, #B, OPERATOR_NAME, LIBDIAG_ASSERT_ACTION, "")
 #define LIBDIAG_ASSERT_OP_VERBOSE(A, OP, B, OPERATOR_NAME, Y) LIBDIAG_ASSERT_OP_IMPL(A, OP, B, #A, #OP, #B, OPERATOR_NAME, LIBDIAG_ASSERT_ACTION, Y)
@@ -419,8 +318,6 @@ void LIBDIAG_NORETURN libdiag_assert_fail_op(const int64_t a, const int64_t b, c
 
 
 
-#if defined __cplusplus
-
 namespace libdiag {
 	template <typename T1, typename T2>
 	class ComparatorBase {
@@ -462,29 +359,6 @@ namespace libdiag {
       }                                                                                              \
   } while (false)
 
-#else
-
-/* This prints an "Assertion failed" message and aborts / throws.  */
-void LIBDIAG_NORETURN libdiag_assert_fail_comparator(const int64_t a, const int64_t b, const char *assertion_lside, const char *assertion_rside, const char *comparator_name, const char *file, unsigned int line, const char *function, const char *extra_message);
-
-// CONDITION_STR is needed to prevent macros in condition from being expected, which obfuscates
-// the logged failure, e.g., "EAGAIN" vs "11".
-#define LIBDIAG_ASSERT_COMPARATOR_IMPL(COMPARATOR_FUNCTION, A, B, A_STR, B_STR, ACTION, DETAILS)                                    \
-  do {                                                                                             \
-	  const int64_t a = (A); \
-      const int64_t b = (B);    \
-      if (COMPARATOR_FUNCTION(a, b))								\
-        ; /* empty */							\
-      else								\
-	  {                                                                            \
-          libdiag_assert_fail_comparator(a, b, A_STR, B_STR, #COMPARATOR_FUNCTION, LIBDIAG_ASSERT_FILE, LIBDIAG_ASSERT_LINE, LIBDIAG_ASSERT_FUNCTION, (DETAILS));	\
-		  ACTION;                                                                                      \
-      }                                                                                              \
-  } while (0)
-
-#endif
-
-
 
 #define LIBDIAG_ASSERT_COMPARATOR_ORIGINAL(COMPARATOR_OBJ_REF, A, B)   LIBDIAG_ASSERT_COMPARATOR_IMPL(COMPARATOR_OBJ_REF, A, B, #A, #B, LIBDIAG_ASSERT_ACTION, "")
 #define LIBDIAG_ASSERT_COMPARATOR_VERBOSE(COMPARATOR_OBJ_REF, A, B, Y) LIBDIAG_ASSERT_COMPARATOR_IMPL(COMPARATOR_OBJ_REF, A, B, #A, #B, LIBDIAG_ASSERT_ACTION, Y)
@@ -499,8 +373,6 @@ void LIBDIAG_NORETURN libdiag_assert_fail_comparator(const int64_t a, const int6
 
 
 
-
-#if defined __cplusplus
 
 namespace libdiag {
 
@@ -657,41 +529,7 @@ namespace libdiag {
   } while (false)
 
 
-#else
 
-int libdiag_string_comparator(const char *a, const char *b);
-
-int libdiag_IEEE754_comparator_absolute_epsilon(const double a, const double b, const double epsilon);
-int libdiag_IEEE754_comparator_relative_epsilon(const double a, const double b, const double epsilon);
-
-
-#define DIAG_ASSERT_STR_EQ(A, B, ...)                                                                                \
-  do {                                                                                             \
-	  DIAG_ASSERT_COMPARATOR(libdiag_string_comparator, A, B, __VA_ARGS__);                            \
-  } while (0)
-
-
-
-
-
-
-
-
-
-// these macro names *differ* from their C++ counterparts as C does not support user-defined literals, so we cannot use the `_pct` or `_perunage` suffixes and related tricks to induce polymorphy.
-
-#define DIAG_ASSERT_FLT_EQ_APPROX_PERUNAGE(A, B, REL_EPSILON, ...)                                                                                \
-  do {                                                                                             \
-	  DIAG_ASSERT_COMPARATOR(libdiag_IEEE754_comparator_relative_epsilon, A, B, REL_EPSILON, __VA_ARGS__);                            \
-  } while (0)
-
-#define DIAG_ASSERT_FLT_EQ_APPROX_FIXED(A, B, ABSOLUTE_EPSILON, ...)                                                                                \
-  do {                                                                                             \
-	  DIAG_ASSERT_COMPARATOR(libdiag_IEEE754_comparator_absolute_epsilon, A, B, ABSOLUTE_EPSILON, __VA_ARGS__);                            \
-  } while (0)
-
-
-#endif
 
 
 

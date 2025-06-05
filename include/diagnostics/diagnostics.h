@@ -1,13 +1,10 @@
 
 #pragma once
 
-#include <spdlog/spdlog.h>
-#include <fmt/format.h>
+// load the language-specific assertions implementation:
 
-namespace diagnostics {
-
-
-}
-
-
-
+#if defined __cplusplus
+#include <diagnostics/implementation/diagnostics-cpp.h>
+#else
+#include <diagnostics/implementation/diagnostics-C.h>
+#endif

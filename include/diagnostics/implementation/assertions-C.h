@@ -14,7 +14,7 @@
 
 
 
-# define LIBDIAG_ASSERT_VOID_CAST (void)
+#define LIBDIAG_ASSERT_VOID_CAST (void)
 
 
 
