@@ -5,7 +5,7 @@
 //#include <fmt/format.h>
 
 
-#include <diagnostics/implementation/diagnostics-common.h>
+#include <diagnostics/implementation/logging-common.h>
 
 
 
