@@ -24,6 +24,8 @@
 // When possible, define assert so that it does not add extra
 // parentheses around EXPR.  Otherwise, those added parentheses would
 // suppress warnings we'd expect to be detected by gcc's -Wparentheses.
+#if defined __cplusplus 
+
 #if !defined LIBDIAG_ASSERT_FILE
 #  if defined __has_builtin
 #   if __has_builtin(__builtin_FILE)
@@ -35,6 +37,14 @@
 #if !defined LIBDIAG_ASSERT_FILE
 #  define LIBDIAG_ASSERT_FILE __FILE__
 #  define LIBDIAG_ASSERT_LINE __LINE__
+#endif
+
+#endif // __cplusplus
+
+#if !defined LIBDIAG_ASSERT_C_FILE
+// C does not support __builtin_FILE() et al, regrettably.
+#  define LIBDIAG_ASSERT_C_FILE __FILE__
+#  define LIBDIAG_ASSERT_C_LINE __LINE__
 #endif
 
 // Version 2.4 and later of GCC define a magical variable `__PRETTY_FUNCTION__'
@@ -52,19 +62,17 @@
 #  define LIBDIAG_ASSERT_FUNCTION	__func__
 #endif
 
-#else // __cplusplus
+#endif // __cplusplus
 
 #if defined __STDC_VERSION__ && __STDC_VERSION__ >= 199901L
-#  define LIBDIAG_ASSERT_FUNCTION	__func__
+#  define LIBDIAG_ASSERT_C_FUNCTION	__func__
 #elif defined(_MSC_VER)
 // Visual Studio 6 does not know __func__ or __FUNCTION__
 // The rest of MS compilers use __FUNCTION__, not C99 __func__
-#  define LIBDIAG_ASSERT_FUNCTION	__FUNCTION__
+#  define LIBDIAG_ASSERT_C_FUNCTION	__FUNCTION__
 #else
-#  define LIBDIAG_ASSERT_FUNCTION	"???"
+#  define LIBDIAG_ASSERT_C_FUNCTION	"???"
 #endif
-
-#endif // __cplusplus
 
 
 // This macro is needed to help to remove: "warning C4003: not enough arguments for function-like

@@ -114,7 +114,7 @@ int main(void) {
 
 	DIAG_ASSERT_FLT_EQ_APPROX(fbar(), fbar() + 1e-3, flt_comparator_EX);
 
-
+	return 0;
 }
 
 

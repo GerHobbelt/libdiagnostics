@@ -158,21 +158,6 @@ namespace libdiag {
       }                                                                                              \
   } while (false)
 
-#else // __cplusplus
-
-// CONDITION_STR is needed to prevent macros in condition from being expected, which obfuscates
-// the logged failure, e.g., "EAGAIN" vs "11".
-#define LIBDIAG_ASSERT_IMPL(CONDITION, CONDITION_STR, ACTION, DETAILS)                                    \
-  do {                                                                                             \
-      if (!!(CONDITION))								\
-        ; /* empty */							\
-      else								\
-	  {                                                                            \
-          libdiag_assert_fail(CONDITION_STR, LIBDIAG_ASSERT_FILE, LIBDIAG_ASSERT_LINE, LIBDIAG_ASSERT_FUNCTION, (DETAILS));	\
-		  ACTION;                                                                                      \
-      }                                                                                              \
-  } while (0)
-
 #if 0
 
 #if !defined(NDEBUG) // If this is a debug build.

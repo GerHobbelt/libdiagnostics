@@ -34,3 +34,28 @@ By the way, it is not called "overloading cout". You should say, "overloading op
 
 
 
+
+
+m just telling you about one other possibility: I like using friend definitions for that:
+
+	namespace Math
+{
+	class Matrix
+	{
+	public:
+
+		[...]
+
+			friend std::ostream& operator<< (std::ostream& stream, const Matrix& matrix) {
+			[...]
+		}
+	};
+}
+
+The function will be automatically targeted into the surrounding namespace Math (even though its definition appears within
+the scope of that class) but will not be visible unless you call operator<< with a Matrix object which will make argument
+dependent lookup find that operator definition. That can sometimes help with ambiguous calls, since it's invisible for
+argument types other than Matrix. When writing its definition, you can also refer directly to names defined in Matrix and
+to Matrix itself, without qualifying the name with some possibly long prefix and providing template parameters like Math::Matrix<TypeA, N>.
+
+
