@@ -12,25 +12,28 @@ I don't know yet how I can get Grafana to visualize images and/or arbitrary BLOB
 
 When we think of a single log message as a (database) ROW, what are the COLUMNS we want to see? Which ones are relevant for any or all of these purposes:
 
-- **filtering the log stream for reasons of**: (1) **performance**: fewer rows means less transfer and formatting costs; (2) **storage space**: fewer rows means reduced storage costs and possibly improved compressibility alongside.
+- **filtering the log stream for reasons of**: 
+  1. **performance**: fewer rows means less transfer and formatting costs; 
+  2. **storage space**: fewer rows means reduced storage costs and possibly improved compressibility alongside.
 - **reproducing the fact**: this requires us to unambiguously identify the application and its build / run configuration, such as config files, command line arguments and the git commit hash identifier for every git repo used to produce this particular executable.
 - **filtering the log stream for reasons of**: (3) reducing surplus noise while drilling down into a particular issue, i.e. when you are debugging/diagnosing an issue, you often want to look into a particular section of the run-time/codebase at extremely elevated detail, while surrounding sections are of no or little interest and thus are (*temporarily*) considered *noise*. 
-  These filters can, as a side effect, be used to keep *performance* high, as you may only require the details of a specific code section, while the other parts of the run-time merit a few "logging" data rows only... unless you wish to look into a different section for the same run, later on (as your diagnostic focus shifts): then the source must have produced all these rows as well! 
-  **Consequently there's to be filtering at the *source* and at the (visualization) *destination*.**
+These filters can, as a side effect, be used to keep *performance* high, as you may only require the details of a specific code section, while the other parts of the run-time merit a few "logging" data rows only... unless you wish to look into a different section for the same run, later on (as your diagnostic focus shifts): then the source must have produced all these rows as well!
+
+**Consequently there's to be filtering at the *source* and at the (visualization) *destination*.**
 
 
 For these purposes we expect these attributes to matter:
 
-- loglevel (classic logging)
+- log **severity level** (classic logging)
 - call / execution hierarchy at run-time:
-  1. category: a human name for a major section of the application
-  2. chapter: a subsection of a category: a large section of the application
-  3.  section
-  4.  function -- shouldn't we support this level as a function call hierarchy?
+  1. **category**: a human name for a major section of the application
+  2. **chapter**: a subsection of a category: a large section of the application
+  3.  **section**: a subsection of a chapter: a smaller section of the application, most probably addressing a single issue or one part thereof
+  4.  **function** -- shouldn't we support this level as a *function call hierarchy*?
 
   The nouns "category / chapter / section" are chosen as they make sense to me now as terms such as "task / module / component" already come with several overloaded meanings and use in other CS areas of interest, so I'd rather stick with less overloaded terms, borrowed from biology or book publishing.
 
-  The question about *&function **hierarchy** tracking* leads to one having to consider call loops and *recursion*, i.e. how far do we want to take this thing? All the way to tracking the entire call tree? (That is assuming the absence of asynchronous operations, such as requiring the diagnostics tracer to be able to track message exchange across thread boundaries and/or coroutines and similar means of coding such things. In other words: **we are asking ourselves whether we track the calling sequences at run-time or are we intent on tracking particular data/messages through the run-time system**: the latter is not identical to the former as we consider multithreaded applications and/or coroutines usage in our codebase...!
+  The question about *function **hierarchy** tracking* leads to one having to consider call loops and *recursion*, i.e. how far do we want to take this thing? All the way to tracking the entire call tree? (That is assuming the absence of asynchronous operations, such as requiring the diagnostics tracer to be able to track message exchange across thread boundaries and/or coroutines and similar means of coding such things. In other words: **we are asking ourselves whether we track the calling sequences at run-time or are we intent on tracking particular data/messages through the run-time system**: the latter is not identical to the former as we consider multithreaded applications and/or coroutines usage in our codebase...!
 
   We consider these kind of call loops and/or recursive calls and wonder: do we want to be able to select the inner `C()` call level only? What's our run-time filter granularity?
 
@@ -118,7 +121,7 @@ might not be the fastest kid on the block, is what I'm saying...
 
      logic-check() && logging-action();
  
-where `logic-check()` *quickly* produces a boolean indicating whether the diagnostics filing, that comes next, is actually needed. C++ compiles this as a *lazy evaluation*, so we MAY encode all our heavy diagnostics lifting in the `logging-action()`, which might include lambda functions and other means to help make sure any additional activity, such as image sampling, encoding, BLOB encoding, (image) data compression, etc., is only actually executed when `logic-check()` says it's got to happen.
+where `logic-check()` *quickly* produces a boolean indicating whether the diagnostics filters are denying execution of the `logging-action` at its tail. C++ compiles this as a *lazy evaluation*, so we MAY encode all our heavy diagnostics lifting in the `logging-action()`, which might include lambda functions and other means acting as `logging-action` parameters/arguments to help make sure any additional activity, such as image sampling, encoding, BLOB encoding, (image) data compression, etc., is only actually executed when `logic-check()` *plus* any `logging-action`-internal pre-checks say it's got to happen.
 
 Incidentally, previous experience (with a hacked test rig) has taught us that image *encoding*, particularly in the (tight!) WEBP format, takes **significant CPU time**, so we are well advised to postpone that one until we really, *really* need it!
 
@@ -148,7 +151,10 @@ Thinking about Grafana as our main viz end point, what is a smart thing to do he
 
 Questions about Grafana et al:
 
-We have diagnostics data in the form of (1) logging lines, i.e. TEXT, (2) raw data and (3) image (snippets): how does Grafana cope with nos. 1 and 3 in their viz/dashboard? Is that good enough for our purposes? Do we need to spend effort on enhancing/tweaking Grafana to make this happen?
+We have diagnostics data in the form of 
+1. logging lines, i.e. TEXT, 
+2. raw data and 
+3. image (snippets): how does Grafana cope with nos. 1 and 3 in their viz/dashboard? Is that good enough for our purposes? Do we need to spend effort on enhancing/tweaking Grafana to make this happen?
 
 We already know we WILL need this extra Grafana plugin/tweak/hack effort if we want images to show up as part of any timeline graph/chart. Additional custom effort is required if we want to show any of those image snippets as part of the larger source image, i.e. show their proper place in time and (page) image location, as the OCR process goes through its paces.
 
