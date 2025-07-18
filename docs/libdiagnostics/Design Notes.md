@@ -236,5 +236,5 @@ logging libraries:
 - https://github.com/log4cplus/log4cplus
 - https://github.com/chronoxor/CppLogging
 - https://codereview.stackexchange.com/questions/221922/c-logging-library : tip to use `boost::stacktrace::stacktrace();` when [stacktrace](https://www.boost.org/doc/libs/1_70_0/doc/html/stacktrace.html) is available on the platform and you want debug stack traces to go with some of your log lines. 
-- 
-- quill: fast, supports binary output or may use a custom sink that does this. async logging for low latency. Seems more suitable than spdlog, while using quite a few of the same (preferred) mechanics as spdlog: fmt, multiple sinks, multiple loggers, ...
+
+- **libquill** [📁](./libquill) [🌐](https://github.com/GerHobbelt/quill) -- a cross-platform low latency logging library based on C++14. Fast, supports binary output or may use a custom sink that does this. async logging for low latency. Seems more suitable than spdlog, while using quite a few of the same (preferred) mechanics as spdlog: fmt, multiple sinks, multiple loggers, ...
